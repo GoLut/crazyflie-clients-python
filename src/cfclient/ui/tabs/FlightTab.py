@@ -325,7 +325,7 @@ class FlightTab(TabToolbox, flight_tab_class):
             self.flightModeCombo.currentIndexChanged.emit(flightComboIndex)
 
     def _flight_command(self, action):
-        # current_z = self._helper.pose_logger.position[2]
+        current_z = self._helper.pose_logger.position[2]
         move_dist = 0.1
         move_vel = 0.2
         if(self.vlc_communication_enabled == True):
@@ -374,11 +374,14 @@ class FlightTab(TabToolbox, flight_tab_class):
                 print("VLC link enabled")
                 self.vlc_communication_enabled = True
                 self.label_VLC.setStyleSheet(STYLE_GREEN_BACKGROUND)
+                self.label_VLC.setText("VLC: " + str(vlc_communication_enabled))
+
 
         if action == VLCCommanderAction.DISABLE:
             print("VLC link disabled")
             self.vlc_communication_enabled = False
             self.label_VLC.setStyleSheet(STYLE_RED_BACKGROUND)
+            self.label_VLC.setText("VLC: " + str(vlc_communication_enabled))
 
 
     def _logging_error(self, log_conf, msg):
