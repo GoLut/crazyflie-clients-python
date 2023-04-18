@@ -30,6 +30,8 @@ The flight control tab shows telemetry data and flight settings.
 """
 
 import logging
+import serial
+
 from enum import Enum
 
 from PyQt5 import uic
@@ -80,6 +82,12 @@ keep the position in X and Y as well. Thrust control becomes height velocity
 control. Requires a flow deck. Uses body-fixed coordinates."""
 
 
+STYLE_RED_BACKGROUND = "background-color: lightpink;"
+STYLE_GREEN_BACKGROUND = "background-color: lightgreen;"
+STYLE_BLUE_BACKGROUND = "background-color: lightblue;"
+STYLE_ORANGE_BACKGROUND = "background-color: orange;"
+STYLE_NO_BACKGROUND = "background-color: none;"
+
 class CommanderAction(Enum):
     TAKE_OFF = 1
     LAND = 2
@@ -90,6 +98,10 @@ class CommanderAction(Enum):
     FORWARD = 7
     BACK = 8
 
+#vlc
+class VLCCommanderAction(Enum):
+    ENABLE = 1
+    DISABLE = 2
 
 class FlightTab(TabToolbox, flight_tab_class):
     uiSetupReadySignal = pyqtSignal()
@@ -178,6 +190,14 @@ class FlightTab(TabToolbox, flight_tab_class):
         self.commanderUpButton.clicked.connect(lambda: self._flight_command(CommanderAction.UP))
         self.commanderDownButton.clicked.connect(lambda: self._flight_command(CommanderAction.DOWN))
 
+        #vlc_commands:
+        self.enableVLCButton.clicked.connect(lambda: self._vlc_command(VLCCommanderAction.ENABLE))
+        self.disableVLCButton.clicked.connect(lambda: self._vlc_command(VLCCommanderAction.DISABLE))
+        self.connectToArduinoSerial.clicked.connect(lambda: self._connect_to_arduino())
+        self.ID_plus.clicked.connect(lambda: self._increment_drone_id())
+        self.ID_min.clicked.connect(lambda: self._decrement_drone_id())
+
+
         self.uiSetupReady()
 
         self._led_ring_headlight.clicked.connect(
@@ -215,6 +235,70 @@ class FlightTab(TabToolbox, flight_tab_class):
 
         self._helper.pose_logger.data_received_cb.add_callback(self._pose_data_signal.emit)
 
+        #connect the arduino over serial
+        self._connect_to_arduino()
+
+        #button status
+        self.vlc_communication_enabled = False
+        self.current_drone_ID_to_talk_to = 0;
+        self.MAX_NUMBER_OF_DRONES = 2
+
+
+        self.label_drone_id.setText("ID: " + str(self.current_drone_ID_to_talk_to))
+
+    def _connect_to_arduino(self):
+        #connect the arduino over serial
+        try:
+            if(self.arduino_connected):
+                self.arduino.close()
+                self.arduino_connected = False
+            self.arduino = serial.Serial(port='/dev/ttyACM0', baudrate=115200, timeout=.1)
+            self.arduino.baudrate = 115200  # set Baud rate to 9600
+            self.arduino.bytesize = 8   # Number of data bits = 8
+            self.arduino.parity  ='N'   # No parity
+            self.arduino.stopbits = 1   # Number of Stop bits = 1
+            self.arduino_connected = True
+            self.label_Serial.setStyleSheet(STYLE_GREEN_BACKGROUND)
+            print("Connected to Arduino")
+        except Exception as e: 
+            print(e)
+            try:
+                self.arduino.close()
+            except Exception as e: 
+                print(e)
+            self.arduino_connected = False
+            self.label_Serial.setStyleSheet(STYLE_RED_BACKGROUND)
+            print("Unable to connect to the to Arduino")
+
+
+    def write_to_arduino(self, x):
+        if self.arduino_connected:
+            try:
+                number_of_bytes_written = self.arduino.write(bytes(str(x), 'utf-8'))
+                print(bytes(str(x), 'utf-8'))
+                print("number of bytes written: " + str(number_of_bytes_written));
+            except Exception as e: 
+                #indicate an error in the interface
+                print("unable to send: closing serial")
+                self.arduino.close()
+                self.label_Serial.setStyleSheet(STYLE_RED_BACKGROUND)
+                self.arduino_connected = False
+                print(e)
+
+    def _increment_drone_id(self):
+        if (self.current_drone_ID_to_talk_to < (self.MAX_NUMBER_OF_DRONES-1)):
+            self.current_drone_ID_to_talk_to += 1
+            self.label_drone_id.setText("Drone ID: " + str(self.current_drone_ID_to_talk_to))
+
+
+        
+    def _decrement_drone_id(self):
+        if (self.current_drone_ID_to_talk_to > 0):
+            self.current_drone_ID_to_talk_to -= 1
+            self.label_drone_id.setText("Drone ID: " + str(self.current_drone_ID_to_talk_to))
+
+        
+
     def _set_limiting_enabled(self, rp_limiting_enabled, yaw_limiting_enabled, thrust_limiting_enabled):
 
         self.targetCalRoll.setEnabled(rp_limiting_enabled)
@@ -241,34 +325,66 @@ class FlightTab(TabToolbox, flight_tab_class):
             self.flightModeCombo.currentIndexChanged.emit(flightComboIndex)
 
     def _flight_command(self, action):
-        current_z = self._helper.pose_logger.position[2]
-        move_dist = 0.5
-        move_vel = 0.5
+        # current_z = self._helper.pose_logger.position[2]
+        move_dist = 0.1
+        move_vel = 0.2
+        if(self.vlc_communication_enabled == True):
+            print("Sending command over VLC link")
+            if action == CommanderAction.TAKE_OFF:
+                self.write_to_arduino(0);
+            elif action == CommanderAction.LAND:
+                self.write_to_arduino(1);
+            elif action == CommanderAction.LEFT:
+                self.write_to_arduino(2);
+            elif action == CommanderAction.RIGHT:
+                self.write_to_arduino(3);
+            elif action == CommanderAction.FORWARD:
+                self.write_to_arduino(4);
+            elif action == CommanderAction.BACK:
+                self.write_to_arduino(5);
+            elif action == CommanderAction.UP:
+                self.write_to_arduino(6);
+            elif action == CommanderAction.DOWN:
+                self.write_to_arduino(7);
+                
+        elif(self.vlc_communication_enabled == False):
+            print("Sending command over Radio link")
+            if action == CommanderAction.TAKE_OFF:
+                self._helper.cf.param.set_value('commander.enHighLevel', '1')
+                z_target = current_z + move_dist*4
+                self._helper.cf.high_level_commander.takeoff(z_target, move_dist / move_vel)
+            elif action == CommanderAction.LAND:
+                self._helper.cf.high_level_commander.land(0, current_z / move_vel)
+            elif action == CommanderAction.LEFT:
+                self._helper.cf.high_level_commander.go_to(0, move_dist, 0, 0, move_dist / move_vel, relative=True)
+            elif action == CommanderAction.RIGHT:
+                self._helper.cf.high_level_commander.go_to(0, -move_dist, 0, 0, move_dist / move_vel, relative=True)
+            elif action == CommanderAction.FORWARD:
+                self._helper.cf.high_level_commander.go_to(move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
+            elif action == CommanderAction.BACK:
+                self._helper.cf.high_level_commander.go_to(-move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
+            elif action == CommanderAction.UP:
+                self._helper.cf.high_level_commander.go_to(0, 0, move_dist, 0, move_dist / move_vel, relative=True)
+            elif action == CommanderAction.DOWN:
+                self._helper.cf.high_level_commander.go_to(0, 0, -move_dist, 0, move_dist / move_vel, relative=True)
 
-        if action == CommanderAction.TAKE_OFF:
-            self._helper.cf.param.set_value('commander.enHighLevel', '1')
-            z_target = current_z + move_dist
-            self._helper.cf.high_level_commander.takeoff(z_target, move_dist / move_vel)
-        elif action == CommanderAction.LAND:
-            self._helper.cf.high_level_commander.land(0, current_z / move_vel)
-        elif action == CommanderAction.LEFT:
-            self._helper.cf.high_level_commander.go_to(0, move_dist, 0, 0, move_dist / move_vel, relative=True)
-        elif action == CommanderAction.RIGHT:
-            self._helper.cf.high_level_commander.go_to(0, -move_dist, 0, 0, move_dist / move_vel, relative=True)
-        elif action == CommanderAction.FORWARD:
-            self._helper.cf.high_level_commander.go_to(move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
-        elif action == CommanderAction.BACK:
-            self._helper.cf.high_level_commander.go_to(-move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
-        elif action == CommanderAction.UP:
-            self._helper.cf.high_level_commander.go_to(0, 0, move_dist, 0, move_dist / move_vel, relative=True)
-        elif action == CommanderAction.DOWN:
-            self._helper.cf.high_level_commander.go_to(0, 0, -move_dist, 0, move_dist / move_vel, relative=True)
+    def _vlc_command(self, action):
+        if self.arduino_connected:
+            if action == VLCCommanderAction.ENABLE:
+                print("VLC link enabled")
+                self.vlc_communication_enabled = True
+                self.label_VLC.setStyleSheet(STYLE_GREEN_BACKGROUND)
+
+        if action == VLCCommanderAction.DISABLE:
+            print("VLC link disabled")
+            self.vlc_communication_enabled = False
+            self.label_VLC.setStyleSheet(STYLE_RED_BACKGROUND)
+
 
     def _logging_error(self, log_conf, msg):
         QMessageBox.about(self, "Log error",
                           "Error when starting log config [%s]: %s" % (
                               log_conf.name, msg))
-
     def _log_data_received(self, timestamp, data, logconf):
         if self.isVisible():
             self.actualM1.setValue(data["motor.m1"])
@@ -374,6 +490,9 @@ class FlightTab(TabToolbox, flight_tab_class):
             self.commanderBox.setEnabled(False)
             return
 
+        # #remove this!!
+        # self.commanderBox.setEnabled(True)
+
     def connected(self, linkURI):
         # MOTOR & THRUST
         lg = LogConfig("Motors", Config().get("ui_update_period"))
@@ -383,6 +502,9 @@ class FlightTab(TabToolbox, flight_tab_class):
         lg.add_variable("motor.m3")
         lg.add_variable("motor.m4")
         lg.add_variable("sys.canfly")
+
+        #vlc
+        self.label_drone_id.setText("Drone ID: " + str(self.current_drone_ID_to_talk_to))
 
         try:
             self._helper.cf.log.add_config(lg)
@@ -420,6 +542,10 @@ class FlightTab(TabToolbox, flight_tab_class):
         self.estimateX.setText("")
         self.estimateY.setText("")
         self.estimateZ.setText("")
+
+        #vlc
+        self.label_drone_id.setText("Drone ID: -")
+
 
         self.targetHeight.setText("Not Set")
         self.ai.setHover(0, self.is_visible())
