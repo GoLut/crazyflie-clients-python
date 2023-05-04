@@ -89,19 +89,29 @@ STYLE_ORANGE_BACKGROUND = "background-color: orange;"
 STYLE_NO_BACKGROUND = "background-color: none;"
 
 class CommanderAction(Enum):
-    TAKE_OFF = 1
-    LAND = 2
+    c_idle = 0
+    c_ENABLE = 1
+    c_DISABLE = 2
     UP = 3
     DOWN = 4
     LEFT = 5
     RIGHT = 6
     FORWARD = 7
     BACK = 8
+    TAKE_OFF = 9 #this is enable vlc in vlc mode
+    LAND = 10 # this is disable vlc in vlc mode
+    c_PF_ENABLE = 11
+    c_PF_DISABLE = 12
 
 #vlc
 class VLCCommanderAction(Enum):
     ENABLE = 1
     DISABLE = 2
+
+class PFCommanderAction(Enum):
+    PF_ENABLE = 1
+    PF_DISABLE = 2
+
 
 class FlightTab(TabToolbox, flight_tab_class):
     uiSetupReadySignal = pyqtSignal()
@@ -196,6 +206,9 @@ class FlightTab(TabToolbox, flight_tab_class):
         self.connectToArduinoSerial.clicked.connect(lambda: self._connect_to_arduino())
         self.ID_plus.clicked.connect(lambda: self._increment_drone_id())
         self.ID_min.clicked.connect(lambda: self._decrement_drone_id())
+        self.enablePFButton.clicked.connect(lambda: self._pf_command(PFCommanderAction.PF_ENABLE))
+        self.disablePFButton.clicked.connect(lambda: self._pf_command(PFCommanderAction.PF_DISABLE))
+
 
 
         self.uiSetupReady()
@@ -243,6 +256,8 @@ class FlightTab(TabToolbox, flight_tab_class):
         self.current_drone_ID_to_talk_to = 0;
         self.MAX_NUMBER_OF_DRONES = 2
 
+        self.pf_updates_enabled = False
+
 
         self.label_drone_id.setText("ID: " + str(self.current_drone_ID_to_talk_to))
 
@@ -274,8 +289,10 @@ class FlightTab(TabToolbox, flight_tab_class):
     def write_to_arduino(self, x):
         if self.arduino_connected:
             try:
-                number_of_bytes_written = self.arduino.write(bytes(str(x), 'utf-8'))
-                print(bytes(str(x), 'utf-8'))
+                # number_of_bytes_written = self.arduino.write(bytes(str(x), 'utf-8'))
+                number_of_bytes_written = self.arduino.write(x.to_bytes(1,"big"))
+                # print(bytes(str(x), 'utf-8'))
+                print(x.to_bytes(1,"big"))
                 print("number of bytes written: " + str(number_of_bytes_written));
             except Exception as e: 
                 #indicate an error in the interface
@@ -331,41 +348,56 @@ class FlightTab(TabToolbox, flight_tab_class):
         if(self.vlc_communication_enabled == True):
             print("Sending command over VLC link")
             if action == CommanderAction.TAKE_OFF:
-                self.write_to_arduino(0);
+                self.write_to_arduino(CommanderAction.TAKE_OFF.value);
             elif action == CommanderAction.LAND:
-                self.write_to_arduino(1);
+                self.write_to_arduino(CommanderAction.LAND.value);
             elif action == CommanderAction.LEFT:
-                self.write_to_arduino(2);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.LEFT.value))
+                self.write_to_arduino(CommanderAction.LEFT.value);
             elif action == CommanderAction.RIGHT:
-                self.write_to_arduino(3);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.RIGHT.value))
+                self.write_to_arduino(CommanderAction.RIGHT.value);
             elif action == CommanderAction.FORWARD:
-                self.write_to_arduino(4);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.FORWARD.value))
+                self.write_to_arduino(CommanderAction.FORWARD.value);
             elif action == CommanderAction.BACK:
-                self.write_to_arduino(5);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.BACK.value))
+                self.write_to_arduino(CommanderAction.BACK.value);
             elif action == CommanderAction.UP:
-                self.write_to_arduino(6);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.UP.value))
+                self.write_to_arduino(CommanderAction.UP.value);
             elif action == CommanderAction.DOWN:
-                self.write_to_arduino(7);
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.DOWN.value))
+                self.write_to_arduino(CommanderAction.DOWN.value);
+
                 
         elif(self.vlc_communication_enabled == False):
             print("Sending command over Radio link")
             if action == CommanderAction.TAKE_OFF:
                 self._helper.cf.param.set_value('commander.enHighLevel', '1')
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.TAKE_OFF.value))
                 z_target = current_z + move_dist*4
                 self._helper.cf.high_level_commander.takeoff(z_target, move_dist / move_vel)
             elif action == CommanderAction.LAND:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.LAND.value))
                 self._helper.cf.high_level_commander.land(0, current_z / move_vel)
             elif action == CommanderAction.LEFT:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.LEFT.value))
                 self._helper.cf.high_level_commander.go_to(0, move_dist, 0, 0, move_dist / move_vel, relative=True)
             elif action == CommanderAction.RIGHT:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.RIGHT.value))
                 self._helper.cf.high_level_commander.go_to(0, -move_dist, 0, 0, move_dist / move_vel, relative=True)
             elif action == CommanderAction.FORWARD:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.FORWARD.value))
                 self._helper.cf.high_level_commander.go_to(move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
             elif action == CommanderAction.BACK:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.BACK.value))
                 self._helper.cf.high_level_commander.go_to(-move_dist, 0, 0, 0, move_dist / move_vel, relative=True)
             elif action == CommanderAction.UP:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.UP.value))
                 self._helper.cf.high_level_commander.go_to(0, 0, move_dist, 0, move_dist / move_vel, relative=True)
             elif action == CommanderAction.DOWN:
+                self._helper.cf.param.set_value('ring.solidBlue', str(CommanderAction.DOWN.value))
                 self._helper.cf.high_level_commander.go_to(0, 0, -move_dist, 0, move_dist / move_vel, relative=True)
 
     def _vlc_command(self, action):
@@ -374,14 +406,52 @@ class FlightTab(TabToolbox, flight_tab_class):
                 print("VLC link enabled")
                 self.vlc_communication_enabled = True
                 self.label_VLC.setStyleSheet(STYLE_GREEN_BACKGROUND)
-                self.label_VLC.setText("VLC: " + str(vlc_communication_enabled))
+                self.label_VLC.setText("VLC: " + str(self.vlc_communication_enabled))
+                self.write_to_arduino(CommanderAction.c_ENABLE.value);
 
 
         if action == VLCCommanderAction.DISABLE:
             print("VLC link disabled")
             self.vlc_communication_enabled = False
             self.label_VLC.setStyleSheet(STYLE_RED_BACKGROUND)
-            self.label_VLC.setText("VLC: " + str(vlc_communication_enabled))
+            self.label_VLC.setText("VLC: " + str(self.vlc_communication_enabled))
+            if self.arduino_connected:
+                self.write_to_arduino(CommanderAction.c_DISABLE.value);
+
+    def _pf_command(self, action):
+        if action == PFCommanderAction.PF_ENABLE:
+            # if self.arduino_connected:
+            #     print("Pf link enabled via arduino")
+            #     self.pf_updates_enabled = True
+            #     self.label_PF.setStyleSheet(STYLE_GREEN_BACKGROUND)
+            #     self.label_PF.setText("PF: " + str(self.pf_updates_enabled))
+            # else:
+            self._helper.cf.param.set_value('ring.solidRed', '1')
+            print("Pf link enabled via RF link")
+            self.pf_updates_enabled = True
+            self.label_PF.setStyleSheet(STYLE_GREEN_BACKGROUND)
+            self.label_PF.setText("PF: " + str(self.pf_updates_enabled))
+            if self.arduino_connected:
+                self.write_to_arduino(CommanderAction.c_PF_ENABLE.value);
+
+
+        if action == PFCommanderAction.PF_DISABLE:
+            # self.pf_updates_enabled = False
+            # self.label_PF.setStyleSheet(STYLE_RED_BACKGROUND)
+            # self.label_PF.setText("PF: " + str(self.pf_updates_enabled))
+
+            # if self.arduino_connected:
+            #     print("Pf link disabled via arduino")
+            #     self.write_to_arduino(CommanderAction.c_PF_DISABLE.value);
+            # else:
+            print("Pf link disabled via RF link")
+            self._helper.cf.param.set_value('ring.solidRed', '0') 
+            self.pf_updates_enabled = False
+            self.label_PF.setStyleSheet(STYLE_RED_BACKGROUND)
+            self.label_PF.setText("PF: " + str(self.pf_updates_enabled))
+            if self.arduino_connected:
+                self.write_to_arduino(CommanderAction.c_PF_DISABLE.value);
+
 
 
     def _logging_error(self, log_conf, msg):
