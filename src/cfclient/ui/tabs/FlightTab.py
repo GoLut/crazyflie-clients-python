@@ -98,8 +98,8 @@ class CommanderAction(Enum):
     RIGHT = 6
     FORWARD = 7
     BACK = 8
-    TAKE_OFF = 9 #this is enable vlc in vlc mode
-    LAND = 10 # this is disable vlc in vlc mode
+    TAKE_OFF = 9 
+    LAND = 10
     c_PF_ENABLE = 11
     c_PF_DISABLE = 12
     c_VLC_FLIGHT_ENABLE = 13
