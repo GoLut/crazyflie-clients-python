@@ -358,7 +358,7 @@ class FlightTab(TabToolbox, flight_tab_class):
 
     def _flight_command(self, action):
         current_z = self._helper.pose_logger.position[2]
-        move_dist = 0.1
+        move_dist = 0.075 #10
         move_vel = 0.2
         if(self.vlc_communication_enabled == True):
             print("Sending command over VLC link")
