@@ -90,8 +90,8 @@ STYLE_NO_BACKGROUND = "background-color: none;"
 
 class CommanderAction(Enum):
     c_idle = 0
-    c_vlc_link_ENABLE = 1
-    c_vlc_link_DISABLE = 2
+    c_VLC_FLIGHT_ENABLE = 1
+    c_VLC_FLIGHT_DISABLE = 2
     UP = 3
     DOWN = 4
     LEFT = 5
@@ -102,8 +102,8 @@ class CommanderAction(Enum):
     LAND = 10
     c_PF_ENABLE = 11
     c_PF_DISABLE = 12
-    c_VLC_FLIGHT_ENABLE = 13
-    c_VLC_FLIGHT_DISABLE = 14
+    c_vlc_link_ENABLE = 13
+    c_vlc_link_DISABLE = 14
 
 #vlc
 class VLCCommanderAction(Enum):
