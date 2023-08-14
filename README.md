@@ -1,3 +1,16 @@
+#Customised for the Msc. Thesis of Jasper-Jan Lut
+
+###Custom files:
+- **src\cfclient\ui\tabs\FlightTab.py**: This is the modified flight tab. It supports the custom VLC link.
+
+- **src\cfclient\ui\tabs\flightTab.ui**:
+This is the modified flight tab. It supports the custom VLC link UI interface.
+
+### Other repositories this work requires:
+- MSC_Thesis_Jasper_Jan_Lut_2023_TuDelft: [link](https://github.com/GoLut/MSC_Thesis_Jasper_Jan_Lut_2023_TuDelft.git)
+- The custom crazyflie firmware: [link](https://github.com/GoLut/crazyflie-firmware)
+
+
 # Crazyflie PC client [![CI](https://github.com/bitcraze/crazyflie-clients-python/workflows/CI/badge.svg)](https://github.com/bitcraze/crazyflie-clients-python/actions?query=workflow%3ACI) [![cfclient](https://snapcraft.io//cfclient/badge.svg)](https://snapcraft.io/cfclient)
 
 
