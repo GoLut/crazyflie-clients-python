@@ -1,6 +1,6 @@
-#Customised for the Msc. Thesis of Jasper-Jan Lut
+# Customised for the Msc. Thesis of Jasper-Jan Lut
 
-###Custom files:
+### Custom files:
 - **src\cfclient\ui\tabs\FlightTab.py**: This is the modified flight tab. It supports the custom VLC link.
 
 - **src\cfclient\ui\tabs\flightTab.ui**:
