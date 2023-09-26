@@ -38,7 +38,7 @@ from PyQt5.QtCore import QAbstractItemModel
 from PyQt5.QtCore import QModelIndex
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMessageBox
-
+import zmq
 import cfclient
 
 __author__ = 'Bitcraze AB'
@@ -48,6 +48,10 @@ logger = logging.getLogger(__name__)
 
 plot_tab_class = uic.loadUiType(cfclient.module_path + "/ui/tabs/plotTab.ui")[0]
 
+# live plotting to matplotlib
+context = zmq.Context()
+socket = context.socket(zmq.PUSH)
+socket.bind("tcp://*:5555")
 
 class LogConfigModel(QAbstractItemModel):
     """Model for log configurations in the ComboBox"""
@@ -257,3 +261,7 @@ class PlotTab(TabToolbox, plot_tab_class):
         if self._previous_config:
             if self._previous_config.name == logconf.name:
                 self._plot.add_data(data, timestamp)
+                z_dot_y_str = str(data['stateEstimateZ.y'])
+                z_dot_z_str = str(data['stateEstimateZ.z'])
+                line = z_dot_y_str + ',' + z_dot_z_str
+                socket.send(bytes(line, 'utf-8'), zmq.NOBLOCK)
